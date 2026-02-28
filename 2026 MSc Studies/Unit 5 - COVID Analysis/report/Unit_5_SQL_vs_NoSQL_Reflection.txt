@@ -1,0 +1,42 @@
+Unit 5 — Reflection: SQL vs. NoSQL Storage Models
+London COVID-19 Dataset
+MSc Artificial Intelligence | University of Essex
+================================================
+
+REFLECTION (~200 words)
+
+The London COVID-19 dataset comprises structured, tabular data with clearly
+defined columns (date, area, cases, deaths, admissions) and a fixed schema.
+This structure is well-suited to a relational SQL model. SQL databases enforce
+schema integrity and support complex queries such as aggregations, joins, and
+time-series filtering — operations central to epidemiological analysis
+(Date, 2004). Tools such as PostgreSQL or MySQL would allow efficient execution
+of queries across the 110 weekly records, maintaining data consistency through
+ACID (Atomicity, Consistency, Isolation, Durability) compliance
+(Stonebraker, 2010).
+
+However, if the dataset were expanded to integrate real-time feeds, unstructured
+clinical notes, or geospatial borough-level data, a NoSQL model would offer
+advantages. Document-oriented databases such as MongoDB support flexible schemas
+and horizontal scalability, accommodating the heterogeneous formats common in
+public health surveillance systems (Sadalage and Fowler, 2012). NoSQL databases
+prioritise availability and partition tolerance under the CAP theorem, making
+them better suited for high-volume ingestion pipelines.
+
+For this use case — a structured, fixed-schema weekly dataset analysed with
+Pandas — SQL remains the more appropriate model. NoSQL would be preferred if
+the data volume, velocity, or variety increased significantly.
+
+================================================
+REFERENCES (Harvard — University of Essex Standard)
+
+Date, C.J. (2004) An Introduction to Database Systems. 8th edn.
+  Boston: Pearson Addison-Wesley.
+
+Sadalage, P.J. and Fowler, M. (2012) NoSQL Distilled: A Brief Guide to the
+  Emerging World of Polyglot Persistence. Boston: Addison-Wesley.
+
+Stonebraker, M. (2010) 'SQL databases v. NoSQL databases',
+  Communications of the ACM, 53(4), pp. 10–11.
+  Available at: https://doi.org/10.1145/1721654.1721659
+  (Accessed: 27 February 2026).
