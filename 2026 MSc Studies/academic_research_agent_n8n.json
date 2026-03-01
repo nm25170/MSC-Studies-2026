@@ -1,0 +1,431 @@
+{
+  "name": "Academic Research AI Agent - Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "a1111111-1111-1111-1111-111111111101",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "research-agent-telegram-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "rule-voice-check",
+                    "leftValue": "={{ $json.message.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice Message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "rule-text-check",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text Message"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2222222-2222-2222-2222-222222222202",
+      "name": "Voice or Text?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ $('Telegram Trigger').item.json.message.voice.file_id }}",
+        "options": {}
+      },
+      "id": "c3333333-3333-3333-3333-333333333303",
+      "name": "Get Telegram File Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 160]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "d4444444-4444-4444-4444-444444444404",
+      "name": "Download Voice File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "parameterType": "formData",
+              "name": "response_format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5555555-5555-5555-5555-555555555505",
+      "name": "Transcribe Audio (Whisper)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 160],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "voice-q",
+              "name": "query",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "voice-cid",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "voice-type",
+              "name": "input_type",
+              "value": "voice",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6666666-6666-6666-6666-666666666606",
+      "name": "Set Voice Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1440, 160]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text-q",
+              "name": "query",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "text-cid",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "text-type",
+              "name": "input_type",
+              "value": "text",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "g7777777-7777-7777-7777-777777777707",
+      "name": "Set Text Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, 440]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "text": "=🔬 *Researching your query...*\n\n📚 Searching academic databases via Perplexity AI\n🤖 Synthesizing with OpenRouter LLM\n\n_This may take 30–90 seconds. Please wait._",
+        "chatId": "={{ $json.chat_id }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "h8888888-8888-8888-8888-888888888808",
+      "name": "Send Thinking Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1680, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore research query after Telegram message was sent\n// (Telegram node only outputs its API response, not the original data)\nconst triggerData = $('Telegram Trigger').item.json;\nconst chatId = triggerData.message.chat.id;\n\nlet query = '';\nlet inputType = 'text';\n\n// Try to get query from voice transcription path\ntry {\n  const voiceItem = $('Set Voice Query').item;\n  if (voiceItem && voiceItem.json && voiceItem.json.query) {\n    query = voiceItem.json.query;\n    inputType = 'voice';\n  }\n} catch(e) {}\n\n// Fall back to text path\nif (!query) {\n  try {\n    const textItem = $('Set Text Query').item;\n    if (textItem && textItem.json && textItem.json.query) {\n      query = textItem.json.query;\n      inputType = 'text';\n    }\n  } catch(e) {}\n}\n\n// Last resort: read directly from trigger\nif (!query) {\n  query = triggerData.message.text || 'Unable to extract query.';\n}\n\nreturn [{ json: { query, chat_id: chatId, input_type: inputType } }];"
+      },
+      "id": "i9999999-9999-9999-9999-999999999909",
+      "name": "Restore Research Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 300]
+    },
+    {
+      "parameters": {
+        "agentType": "toolsAgent",
+        "text": "={{ $json.query }}",
+        "options": {
+          "systemMessage": "You are an elite academic research assistant with expertise across all scientific and scholarly disciplines. Your mission is to conduct deep, comprehensive, rigorous research and produce publication-quality research summaries.\n\n## RESEARCH PROTOCOL\n\nWhen researching a topic, you MUST use the Perplexity search tool multiple times (minimum 3-5 searches) with progressively refined queries:\n\n**Search Round 1:** Broad landscape — \"[topic] academic research overview peer-reviewed\"\n**Search Round 2:** Recent work — \"[topic] latest studies 2023 2024 findings\"\n**Search Round 3:** Methodology — \"[topic] research methods experimental design meta-analysis\"\n**Search Round 4:** Debates — \"[topic] scientific controversy disagreement limitations\"\n**Search Round 5 (if needed):** Specific sub-topics or applications\n\nAlways extract and note:\n- Author names, year, journal/venue\n- Sample sizes and study designs\n- Key statistics and p-values when available\n- Effect sizes and confidence intervals\n- Institutional affiliations\n\n## OUTPUT FORMAT\n\nStructure your final report as follows (use Telegram markdown):\n\n📋 *EXECUTIVE SUMMARY*\nConcise synthesis of the most critical findings (3-4 sentences).\n\n🔬 *KEY RESEARCH FINDINGS*\nMajor discoveries with specific citations (Author et al., Year, Journal).\n\n📅 *RECENT DEVELOPMENTS (2022–2024)*\nLatest studies and emerging research directions.\n\n👩‍🔬 *KEY RESEARCHERS & INSTITUTIONS*\nPrincipal investigators and leading labs in this field.\n\n⚖️ *SCIENTIFIC CONSENSUS & DEBATES*\n• Areas of strong consensus\n• Contested findings or methodological disputes\n\n📊 *KEY DATA & STATISTICS*\nImportant quantitative findings from the literature.\n\n📚 *CORE REFERENCES*\nTop 5-8 most important papers with full citation details.\n\n🔭 *OPEN QUESTIONS & FUTURE DIRECTIONS*\nUnsolved problems and promising research avenues.\n\n## CRITICAL RULES\n- Never fabricate citations — only cite sources found via search\n- Clearly distinguish between established consensus and emerging/speculative findings\n- Note when evidence quality is low (small samples, no replication, etc.)\n- Use precise scientific language\n- Format all text for Telegram: use *bold* for headers, avoid HTML",
+          "maxIterations": 15,
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "j0101010-1010-1010-1010-101010101010",
+      "name": "Academic Research Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [2160, 300]
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-sonnet:beta",
+        "options": {
+          "baseURL": "https://openrouter.ai/api/v1",
+          "maxTokens": 8192,
+          "temperature": 0.1
+        }
+      },
+      "id": "k1212121-1212-1212-1212-121212121212",
+      "name": "OpenRouter - Claude 3.5 Sonnet",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [2020, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENROUTER_CREDENTIAL_ID",
+          "name": "OpenRouter API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "perplexity_academic_search",
+        "description": "Search for academic papers, peer-reviewed studies, scientific research, and scholarly information using Perplexity AI's real-time web search. USE THIS TOOL MULTIPLE TIMES with different search queries to comprehensively cover the research topic. Input should be a focused academic search query (e.g. 'CRISPR gene editing cancer therapy clinical trials 2023', 'quantum computing error correction recent advances').",
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"model\": \"sonar-pro\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a specialized academic research assistant. For every query, provide comprehensive information including: specific paper titles, author names, publication years, journal names, key findings with statistics, methodology details, sample sizes, and direct quotes from abstracts when possible. Prioritize peer-reviewed sources: PubMed, arXiv, Google Scholar, Nature, Science, Cell, JAMA, Lancet, NEJM, IEEE, ACM. Always include DOIs or URLs when available.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{input}\"\n    }\n  ],\n  \"return_citations\": true,\n  \"return_related_questions\": false,\n  \"search_recency_filter\": \"month\"\n}",
+        "options": {}
+      },
+      "id": "l1313131-1313-1313-1313-131313131313",
+      "name": "Perplexity Academic Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [2300, 500],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_PERPLEXITY_CREDENTIAL_ID",
+          "name": "Perplexity API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split long research reports into Telegram-compatible chunks (4096 char limit)\nconst output = $json.output || 'Research completed but no output was generated.';\nconst chatId = $('Telegram Trigger').item.json.message.chat.id;\nconst MAX_LENGTH = 4000; // buffer below Telegram's 4096 hard limit\n\nif (output.length <= MAX_LENGTH) {\n  return [{ json: { text: output, chat_id: chatId, part: 1, total_parts: 1 } }];\n}\n\n// Split at natural paragraph boundaries\nconst chunks = [];\nlet remaining = output;\n\nwhile (remaining.length > 0) {\n  if (remaining.length <= MAX_LENGTH) {\n    chunks.push(remaining.trim());\n    break;\n  }\n\n  // Prefer splitting at double newline (paragraph boundary)\n  let splitAt = remaining.lastIndexOf('\\n\\n', MAX_LENGTH);\n  \n  // Fall back to single newline\n  if (splitAt <= 200) {\n    splitAt = remaining.lastIndexOf('\\n', MAX_LENGTH);\n  }\n  \n  // Last resort: hard cut\n  if (splitAt <= 200) {\n    splitAt = MAX_LENGTH;\n  }\n\n  chunks.push(remaining.substring(0, splitAt).trim());\n  remaining = remaining.substring(splitAt).trim();\n}\n\nconst totalParts = chunks.length;\n\nreturn chunks.map((chunk, index) => ({\n  json: {\n    text: totalParts > 1\n      ? `📄 *Part ${index + 1} of ${totalParts}*\\n\\n${chunk}`\n      : chunk,\n    chat_id: chatId,\n    part: index + 1,\n    total_parts: totalParts\n  }\n}));"
+      },
+      "id": "m1414141-1414-1414-1414-141414141414",
+      "name": "Format Response (Handle Long Output)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "text": "={{ $json.text }}",
+        "chatId": "={{ $json.chat_id }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "n1515151-1515-1515-1515-151515151515",
+      "name": "Send Research Result",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2640, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [{ "node": "Voice or Text?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Voice or Text?": {
+      "main": [
+        [{ "node": "Get Telegram File Info", "type": "main", "index": 0 }],
+        [{ "node": "Set Text Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Telegram File Info": {
+      "main": [
+        [{ "node": "Download Voice File", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download Voice File": {
+      "main": [
+        [{ "node": "Transcribe Audio (Whisper)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Transcribe Audio (Whisper)": {
+      "main": [
+        [{ "node": "Set Voice Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Voice Query": {
+      "main": [
+        [{ "node": "Send Thinking Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Text Query": {
+      "main": [
+        [{ "node": "Send Thinking Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Thinking Message": {
+      "main": [
+        [{ "node": "Restore Research Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Restore Research Query": {
+      "main": [
+        [{ "node": "Academic Research Agent", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenRouter - Claude 3.5 Sonnet": {
+      "ai_languageModel": [
+        [{ "node": "Academic Research Agent", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "Perplexity Academic Search": {
+      "ai_tool": [
+        [{ "node": "Academic Research Agent", "type": "ai_tool", "index": 0 }]
+      ]
+    },
+    "Academic Research Agent": {
+      "main": [
+        [{ "node": "Format Response (Handle Long Output)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Response (Handle Long Output)": {
+      "main": [
+        [{ "node": "Send Research Result", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateId": "academic-research-telegram-agent",
+    "instanceId": "academic-research-agent-v1"
+  },
+  "tags": [
+    { "name": "AI" },
+    { "name": "Research" },
+    { "name": "Telegram" },
+    { "name": "Academic" },
+    { "name": "OpenRouter" },
+    { "name": "Perplexity" }
+  ]
+}
